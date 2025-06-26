@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>אימות כתובת מייל</title>
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/nzinok/questionnaire-site/fe58ebe6cc328ce515da4bdece58cb1886d3c9bd/%D7%A0%D7%A7%D7%95%D7%93%D7%AA%20%D7%96%D7%99%D7%A0%D7%95%D7%A7%20%D7%A2%D7%9C%20%D7%A8%D7%A7%D7%A2%20%D7%98%D7%A8%D7%99%D7%A7%D7%95%D7%9C%D7%95%D7%A8%20(1).png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        @keyframes fadeInModal { from { opacity: 0; transform: translateY(-20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        body { font-family: 'Rubik', sans-serif; margin: 0; background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .modal-container { background-color: white; padding: 30px 40px; border-radius: 16px; box-shadow: 0 20px 60px rgba(50, 50, 93, 0.15), 0 15px 35px rgba(0, 0, 0, 0.1); text-align: center; max-width: 480px; width: 100%; border: 1px solid #e6e9ee; animation: fadeInModal 0.6s ease-out forwards; }
+        .icon { width: 60px; height: 60px; margin: 0 auto 20px auto; color: #667eea; }
+        h1 { font-size: 1.8rem; font-weight: 700; color: #334155; margin-bottom: 15px; }
+        p { font-size: 1.1rem; color: #64748b; line-height: 1.7; margin-bottom: 25px; }
+        .email-input{width:100%;padding:15px;font-size:1rem;border:2px solid #ddd;border-radius:12px;box-sizing:border-box;margin-bottom:20px;text-align:right;transition:border-color .3s}
+        .email-input:focus{outline:none;border-color:#764ba2}
+        .email-input.invalid{border-color:#e53935}
+        .error-message{color:#e53935;font-size:.9rem;min-height:20px;text-align:right;margin-top:-15px;margin-bottom:15px; transition: opacity 0.3s;}
+        .submit-btn{background:linear-gradient(45deg, #28a745, #218838);color:white;border:none;border-radius:12px;padding:18px;width:100%;font-size:1.3rem;font-weight:700;cursor:pointer;transition:all .3s;box-shadow:0 4px 15px rgba(40,167,69,.4);opacity:0.5;cursor:not-allowed;}
+        .submit-btn.enabled{opacity:1;cursor:pointer;}
+        .submit-btn.enabled:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(40,167,69,.5)}
+    </style>
+</head>
+<body>
+    <div class="modal-container">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+        <h1>שלב אחרון לפני התשלום</h1>
+        <p>נא להזין כתובת אימייל תקינה. לכתובת זו יישלח הקישור האישי והייחודי שלך לכניסה לשאלון מיד לאחר התשלום.</p>
+        
+        <form id="emailForm">
+            <input type="email" id="emailInput" class="email-input" placeholder="yourmail@example.com" required>
+            <input type="email" id="confirmEmailInput" class="email-input" placeholder="אישור כתובת האימייל" required>
+            <div id="emailError" class="error-message"></div>
+            <button type="submit" id="submitBtn" class="submit-btn" disabled>מעבר לתשלום מאובטח</button>
+        </form>
+    </div>
+
+    <script>
+        const DEMO_MODE = true; // שנה ל-false כדי לעבור לתשלום אמיתי
+
+        const emailForm = document.getElementById('emailForm');
+        const emailInput = document.getElementById('emailInput');
+        const confirmEmailInput = document.getElementById('confirmEmailInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const emailError = document.getElementById('emailError');
+
+        // Feature 1: Prevent pasting into the confirmation field
+        confirmEmailInput.addEventListener('paste', function(event) {
+            event.preventDefault();
+            emailError.textContent = 'לצורך אימות, אנא הקלד את הכתובת שוב.';
+            confirmEmailInput.classList.add('invalid');
+            setTimeout(() => {
+                if (emailError.textContent === 'לצורך אימות, אנא הקלד את הכתובת שוב.') {
+                    emailError.textContent = '';
+                    confirmEmailInput.classList.remove('invalid');
+                }
+            }, 3000);
+        });
+
+        // Feature 2: Smart validation logic
+        
+        // This function only enables/disables the button. No error messages.
+        function updateButtonState() {
+            const email = emailInput.value;
+            const confirmEmail = confirmEmailInput.value;
+            if (email && confirmEmail && email === confirmEmail && validateEmail(email)) {
+                submitBtn.disabled = false;
+                submitBtn.classList.add('enabled');
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.remove('enabled');
+            }
+        }
+
+        // This function shows an error message ONLY when leaving the field.
+        function checkMismatchOnBlur() {
+            const email = emailInput.value;
+            const confirmEmail = confirmEmailInput.value;
+            if (confirmEmail.length > 0 && email !== confirmEmail) {
+                emailError.textContent = 'כתובות האימייל אינן תואמות.';
+                confirmEmailInput.classList.add('invalid');
+            }
+        }
+        
+        // This function clears the error when the user clicks back in to fix it.
+        function clearErrorOnFocus() {
+            emailError.textContent = '';
+            confirmEmailInput.classList.remove('invalid');
+        }
+
+        // Attach the event listeners
+        emailInput.addEventListener('input', updateButtonState);
+        confirmEmailInput.addEventListener('input', updateButtonState);
+        confirmEmailInput.addEventListener('blur', checkMismatchOnBlur);
+        confirmEmailInput.addEventListener('focus', clearErrorOnFocus);
+
+
+        // Final check on submit
+        emailForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // If the button is disabled, it means the form is not valid.
+            if (submitBtn.disabled) {
+                // Run the blur check one last time to ensure the user sees the error.
+                checkMismatchOnBlur();
+                if(!emailError.textContent) {
+                    emailError.textContent = "אנא ודא ששני שדות האימייל זהים ותקינים.";
+                }
+                return;
+            }
+
+            // If we are here, the form is valid. Proceed with submission.
+            const email = emailInput.value;
+            const baseReturnUrl = 'https://nzinok.github.io/nisuy-agbala/thankyou.html';
+            const returnUrlWithEmail = `${baseReturnUrl}?email=${encodeURIComponent(email)}`;
+
+            if (DEMO_MODE) {
+                window.location.href = returnUrlWithEmail;
+            } else {
+                const upayForm = document.createElement('form');
+                upayForm.action = 'https://app.upay.co.il/API6/clientsecure/redirectpage.php';
+                upayForm.method = 'post';
+                upayForm.style.display = 'none';
+                const fields = { email: '8447650@gmail.com', amount: '2', returnurl: returnUrlWithEmail, paymentdetails: 'אבחון תעסוקתי מקיף - מחיר השקה', ipnurl: '', maxpayments: '1', livesystem: '1', commissionreduction: '', createinvoiceandreceipt: '0', createinvoice: '0', createreceipt: '0', refername: 'UPAY', lang: 'HE', currency: 'NIS' };
+                for (const key in fields) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden'; input.name = key; input.value = fields[key];
+                    upayForm.appendChild(input);
+                }
+                const submitInput = document.createElement('input');
+                submitInput.type = 'hidden';
+                submitInput.name = 'submit';
+                submitInput.value = 'pay';
+                upayForm.appendChild(submitInput);
+                document.body.appendChild(upayForm);
+                upayForm.submit();
+            }
+        });
+
+        // Regex helper function
+        function validateEmail(email) {
+            const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+            return re.test(String(email).toLowerCase());
+        }
+    </script>
+</body>
+</html>
