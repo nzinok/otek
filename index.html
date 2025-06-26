@@ -170,7 +170,6 @@
         function onDataReceived(response) {
             if(!response.success) return onLoadError(new Error(response.message)); 
             
-            // דיבוג - הדפס את הנתונים שהתקבלו
             console.log('Response received:', response);
             console.log('Prefill data:', response.prefillData);
             
@@ -205,7 +204,6 @@
             
             if (questionnaireData[sectionName].randomize) {
                 const pinnedItems = originalItems.filter(item => item.type.toLowerCase() === 'הוראות' && !isPairedWithFileInput(originalItems, originalItems.indexOf(item)));
-                
                 const shuffleableItems = originalItems.filter(item => !pinnedItems.includes(item));
                 const groupedShuffleable = groupItems(shuffleableItems);
                 const shuffledGroups = shuffleArray(groupedShuffleable);
@@ -628,6 +626,10 @@
             }
             
             answers[key] = Array.isArray(value) ? value.join(', ') : value;
+            
+            // עדכון מד התקדמות מיד אחרי שמירת תשובה
+            updateProgressBars();
+            
             const escapedKey = key.replace(/'/g, "\\'").replace(/"/g, '\\"');
             const element = document.querySelector(`[data-required="true"][data-key="${escapedKey}"]`);
             
@@ -645,6 +647,25 @@
                     const errorEl = element.querySelector('.error-message-inline');
                     if(errorEl) errorEl.textContent = '';
                 }
+            }
+        }
+
+        function scrollToNext(currentElement) {
+            // בדיקה אם גלילה אוטומטית מותרת עבור המקטע הנוכחי
+            const sectionName = sections[currentSection];
+            const shouldAutoScroll = questionnaireData[sectionName]?.autoScroll !== false;
+            
+            if (!shouldAutoScroll) {
+                return; // לא מבצעים גלילה אם היא כבויה
+            }
+            
+            const allQuestions = Array.from(ui.questionsContainer.querySelectorAll('.question, .file-upload-block, .confirmation-block'));
+            const currentIndex = allQuestions.findIndex(el => el === currentElement);
+            if(currentIndex > -1 && currentIndex < allQuestions.length - 1) {
+                const nextQuestionEl = allQuestions[currentIndex + 1];
+                setTimeout(() => {
+                    nextQuestionEl.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }, 200);
             }
         }
 
@@ -757,17 +778,6 @@
         function sanitizeTextForKey(text) {
             if(typeof text !== 'string') return '';
             return text.replace(/[\r\n\t]/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
-        }
-
-        function scrollToNext(currentElement) {
-            const allQuestions = Array.from(ui.questionsContainer.querySelectorAll('.question, .file-upload-block, .confirmation-block'));
-            const currentIndex = allQuestions.findIndex(el => el === currentElement);
-            if(currentIndex > -1 && currentIndex < allQuestions.length - 1) {
-                const nextQuestionEl = allQuestions[currentIndex + 1];
-                setTimeout(() => {
-                    nextQuestionEl.scrollIntoView({behavior: 'smooth', block: 'center'});
-                }, 200);
-            }
         }
 
         function startQuestionnaire() {
