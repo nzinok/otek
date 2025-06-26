@@ -43,7 +43,7 @@
         .category-title{font-size:1.8rem;font-weight:700;margin-bottom:25px;padding-bottom:10px;border-bottom:3px solid var(--primary-blue);display:inline-block}
         .question,.file-upload-block,.confirmation-block{margin-bottom:25px;padding:20px;background:white;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);transition:box-shadow .3s,border-color .3s,background-color .3s;border:1px solid transparent}
         .question-text,.file-upload-title{font-size:1.2rem;margin-bottom:15px;line-height:1.5;text-align:center}
-        .question-input input[type=text],.question-input input[type=number],.question-input textarea{width:100%;padding:12px;border:1px solid var(--border-color);border-radius:8px;font-size:1rem;font-family:'Rubik',sans-serif}
+        .question-input input[type=text],.question-input input[type=number],.question-input input[type=email],.question-input textarea{width:100%;padding:12px;border:1px solid var(--border-color);border-radius:8px;font-size:1rem;font-family:'Rubik',sans-serif}
         .prefilled-field { background-color: #f0f4f8; color: #555; cursor: not-allowed; }
         .instruction-text{padding:15px 20px;background-color:var(--light-gray);border-right:5px solid var(--primary-purple);margin-bottom:20px;border-radius:8px;font-size:1rem;line-height:1.6}
         .confirmation-details { text-align: right; margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px; background-color: #fafafa; white-space: pre-wrap; }
@@ -127,7 +127,29 @@
         let sessionToken = null;
         let prefilledEmail = null;
 
-        const ui = { container: document.getElementById('container'), mainArea: document.getElementById('mainArea'), intro: document.getElementById('introScreen'), introTitle: document.getElementById('introTitle'), introBody: document.getElementById('introBody'), headerTitle: document.getElementById('headerTitle'), loading: document.getElementById('loading'), loadingText: document.getElementById('loadingText'), error: document.getElementById('errorMessage'), success: document.getElementById('successMessage'), questionnaire: document.getElementById('questionnaireContent'), questionsContainer: document.getElementById('questionsContainer'), startBtn: document.getElementById('startBtn'), prevBtn: document.getElementById('prevBtn'), nextBtn: document.getElementById('nextBtn'), submitBtn: document.getElementById('submitBtn'), sectionInfo: document.getElementById('sectionInfo'), progressBar: document.getElementById('progressBar'), saveIndicator: document.getElementById('save-indicator'), sectionProgressWrapper: document.getElementById('section-progress-container-wrapper'), progressHeader: document.getElementById('progress-header') };
+        const ui = { 
+            container: document.getElementById('container'), 
+            mainArea: document.getElementById('mainArea'), 
+            intro: document.getElementById('introScreen'), 
+            introTitle: document.getElementById('introTitle'), 
+            introBody: document.getElementById('introBody'), 
+            headerTitle: document.getElementById('headerTitle'), 
+            loading: document.getElementById('loading'), 
+            loadingText: document.getElementById('loadingText'), 
+            error: document.getElementById('errorMessage'), 
+            success: document.getElementById('successMessage'), 
+            questionnaire: document.getElementById('questionnaireContent'), 
+            questionsContainer: document.getElementById('questionsContainer'), 
+            startBtn: document.getElementById('startBtn'), 
+            prevBtn: document.getElementById('prevBtn'), 
+            nextBtn: document.getElementById('nextBtn'), 
+            submitBtn: document.getElementById('submitBtn'), 
+            sectionInfo: document.getElementById('sectionInfo'), 
+            progressBar: document.getElementById('progressBar'), 
+            saveIndicator: document.getElementById('save-indicator'), 
+            sectionProgressWrapper: document.getElementById('section-progress-container-wrapper'), 
+            progressHeader: document.getElementById('progress-header') 
+        };
         
         async function init() {
             showView(ui.loading);
@@ -145,11 +167,18 @@
             }
         }
         
-        function onDataReceived(response){
+        function onDataReceived(response) {
             if(!response.success) return onLoadError(new Error(response.message)); 
+            
+            // דיבוג - הדפס את הנתונים שהתקבלו
+            console.log('Response received:', response);
+            console.log('Prefill data:', response.prefillData);
+            
             if (response.prefillData && response.prefillData.email) {
                 prefilledEmail = response.prefillData.email;
+                console.log('Prefilled email set to:', prefilledEmail);
             }
+            
             ui.progressHeader.style.display = 'block';
             if(response.introduction){
                 ui.introTitle.textContent = response.introduction.title;
@@ -178,10 +207,8 @@
                 const pinnedItems = originalItems.filter(item => item.type.toLowerCase() === 'הוראות' && !isPairedWithFileInput(originalItems, originalItems.indexOf(item)));
                 
                 const shuffleableItems = originalItems.filter(item => !pinnedItems.includes(item));
-
                 const groupedShuffleable = groupItems(shuffleableItems);
                 const shuffledGroups = shuffleArray(groupedShuffleable);
-
                 items = [...pinnedItems, ...ungroupItems(shuffledGroups)];
             } else {
                 items = originalItems;
@@ -206,7 +233,6 @@
             updateNavigation();
         }
         
-        // --- Helper functions for the new shuffling logic ---
         function isPairedWithFileInput(allItems, index) {
             if (index + 1 < allItems.length) {
                 return allItems[index + 1].type.toLowerCase() === 'קובץ';
@@ -221,7 +247,7 @@
                 const next = (i + 1 < items.length) ? items[i + 1] : null;
                 if (current.type.toLowerCase() === 'הוראות' && next && next.type.toLowerCase() === 'קובץ') {
                     grouped.push({ isGroup: true, group: [current, next] });
-                    i++; // Skip next item
+                    i++; 
                 } else {
                     grouped.push(current);
                 }
@@ -241,7 +267,6 @@
             return ungrouped;
         }
 
-
         function buildItemHtml(item, sectionName, index) {
             const sanitizedQuestionText = sanitizeTextForKey(item.question);
             const answerKey = `${sectionName}: ${sanitizedQuestionText}`;
@@ -255,17 +280,38 @@
             if (itemType === 'מייל_מזוהה') return buildPrefilledEmailHtml(item, answerKey);
 
             let html = `<div class="question" data-required="${item.required || false}" data-key="${answerKey}"><div class="question-text">${item.question}${requiredMark}</div><div class="question-input">`;
-            if(itemType.startsWith('טקסט') || itemType.startsWith('מספר') || itemType.startsWith('שם')) { const inputType = itemType.startsWith('מספר') ? 'number' : 'text'; const tag = itemType.startsWith('טקסט') ? `<textarea oninput="handleTyping(this)" onblur="handleTextBlur(this)" rows="4">${currentValue || ''}</textarea>` : `<input type="${inputType}" value="${currentValue || ''}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`; html += tag; } else if(itemType.startsWith('דירוג')) { html += buildRatingHtml(item, currentValue, answerKey); } else if(itemType.startsWith('בחירה מרובה')) { html += buildCheckboxHtml(item, currentValue, answerKey, safeId); } else if(itemType.startsWith('בחירה מתוך רשימה')) { html += buildSelectHtml(item, currentValue, answerKey, safeId); } else if(itemType.startsWith('קובץ')) { html += buildFileUploadHtml({question: item.question, required: item.required}, answerKey, safeId); } else { html += `<input type="text" value="${currentValue || ''}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`; }
+            
+            if(itemType.startsWith('טקסט') || itemType.startsWith('מספר') || itemType.startsWith('שם')) { 
+                const inputType = itemType.startsWith('מספר') ? 'number' : 'text'; 
+                const tag = itemType.startsWith('טקסט') ? `<textarea oninput="handleTyping(this)" onblur="handleTextBlur(this)" rows="4">${currentValue || ''}</textarea>` : `<input type="${inputType}" value="${currentValue || ''}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`; 
+                html += tag; 
+            } else if(itemType.startsWith('דירוג')) { 
+                html += buildRatingHtml(item, currentValue, answerKey); 
+            } else if(itemType.startsWith('בחירה מרובה')) { 
+                html += buildCheckboxHtml(item, currentValue, answerKey, safeId); 
+            } else if(itemType.startsWith('בחירה מתוך רשימה')) { 
+                html += buildSelectHtml(item, currentValue, answerKey, safeId); 
+            } else if(itemType.startsWith('קובץ')) { 
+                html += buildFileUploadHtml({question: item.question, required: item.required}, answerKey, safeId); 
+            } else { 
+                html += `<input type="text" value="${currentValue || ''}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`; 
+            }
+            
             return html + `</div><div class="error-message-inline"></div></div>`;
         }
 
         function buildConfirmationHtml(item, currentValue, answerKey, safeId) {
+            console.log('Building confirmation with details:', item.details);
+            
             let html = `<div class="confirmation-block" data-required="${item.required || false}" data-key="${answerKey}">`;
-            if (item.details) {
+            
+            if (item.details && item.details.trim() !== '') {
                 html += `<div class="confirmation-details">${item.details.replace(/\n/g, '<br>')}</div>`;
             }
+            
             const isChecked = currentValue === 'מאשר';
             const requiredMark = item.required ? `<span class="required-mark">*</span>` : '';
+            
             html += `<label class="confirmation-label" for="${safeId}">
                         <input type="checkbox" id="${safeId}" onchange="handleConfirmationClick(this)" ${isChecked ? 'checked' : ''}>
                         <span>${item.question}${requiredMark}</span>
@@ -276,15 +322,22 @@
         }
 
         function buildPrefilledEmailHtml(item, answerKey) {
-             if (prefilledEmail && !answers[answerKey]) {
-                setTimeout(() => saveAnswer(answerKey, prefilledEmail), 0);
-             }
-             const value = prefilledEmail || answers[answerKey] || '';
-             const requiredMark = item.required ? `<span class="required-mark">*</span>` : '';
-             return `<div class="question" data-required="${item.required || false}" data-key="${answerKey}">
+            console.log('Building prefilled email field, prefilledEmail:', prefilledEmail);
+            
+            if (prefilledEmail && !answers[answerKey]) {
+                setTimeout(() => {
+                    console.log('Saving prefilled email:', prefilledEmail);
+                    saveAnswer(answerKey, prefilledEmail);
+                }, 0);
+            }
+            
+            const value = prefilledEmail || answers[answerKey] || '';
+            const requiredMark = item.required ? `<span class="required-mark">*</span>` : '';
+            
+            return `<div class="question" data-required="${item.required || false}" data-key="${answerKey}">
                         <div class="question-text">${item.question}${requiredMark}</div>
                         <div class="question-input">
-                            <input type="email" value="${value}" class="prefilled-field" readonly>
+                            <input type="email" value="${value}" readonly style="background-color: #f0f4f8; color: #555; cursor: not-allowed;">
                         </div>
                         <div class="error-message-inline"></div>
                      </div>`;
@@ -296,60 +349,612 @@
             saveAnswer(answerKey, value);
         }
 
-        async function submitQuestionnaire(){if(!validateRequiredQuestions())return;showView(ui.loading);ui.loadingText.textContent='שולח תשובות...';ui.submitBtn.disabled=true;if(autosaveInterval)clearInterval(autosaveInterval);const submissionData={action:'saveAnswers',payload:{answers:answers,timestamp:new Date().toISOString(),token:sessionToken}};try{const response=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(submissionData),headers:{'Content-Type':'text/plain;charset=utf-8'}});const result=await response.json();if(result.success){localStorage.removeItem('questionnaireAutoSave_'+sessionToken);showView(ui.success)}else{throw new Error(result.message)}}catch(error){onSubmitError(error)}}
-        function saveLocalDraft(){if(!sessionToken)return;try{const draftData={answers:answers,currentSection:currentSection,sectionHistory:sectionHistory,timestamp:new Date().toISOString()};localStorage.setItem('questionnaireAutoSave_'+sessionToken,JSON.stringify(draftData));ui.saveIndicator.textContent=`נשמר: ${new Date().toLocaleTimeString()}`;ui.saveIndicator.style.opacity='1';setTimeout(()=>{ui.saveIndicator.style.opacity='0.5'},3000)}catch(e){console.error('Error saving draft:',e)}}
-        function loadLocalDraft(){if(!sessionToken)return null;try{const savedData=localStorage.getItem('questionnaireAutoSave_'+sessionToken);if(!savedData)return null;const draftData=JSON.parse(savedData);if((new Date-new Date(draftData.timestamp))/(1000*3600*24)>7){localStorage.removeItem('questionnaireAutoSave_'+sessionToken);return null}
-        return draftData}catch(e){console.error('Error loading draft:',e);return null}}
-        function sanitizeTextForKey(text){if(typeof text!=='string')return'';return text.replace(/[\r\n\t]/g,' ').replace(/[\u200B-\u200D\uFEFF]/g,'').trim()}
-        function scrollToNext(currentElement){const allQuestions=Array.from(ui.questionsContainer.querySelectorAll('.question, .file-upload-block, .confirmation-block'));const currentIndex=allQuestions.findIndex(el=>el===currentElement);if(currentIndex>-1&&currentIndex<allQuestions.length-1){const nextQuestionEl=allQuestions[currentIndex+1];setTimeout(()=>{nextQuestionEl.scrollIntoView({behavior:'smooth',block:'center'})},200)}}
-        function startQuestionnaire(){if(!checkForDraft()){currentSection=0;displayCurrentSection();startAutosave()}}
-        function buildRatingHtml(item,currentValue,answerKey){const min=item.ratingConfig?.min||1;const max=item.ratingConfig?.max||5;let html=`<div class="rating-group"><span class="rating-label-text">כלל לא</span><div class="rating-boxes" data-key="${answerKey}">`;for(let j=min;j<=max;j++){html+=`<div class="rating-box ${currentValue==j?'selected':''}" onclick="handleRatingClick(this)" data-value="${j}">${j}</div>`}
-        return html+`</div><span class="rating-label-text">מאוד</span></div>`}
-        function buildCheckboxHtml(item,currentValue,answerKey,safeId){const limitMatch=item.type.match(/הגבלה:\s*(\d+)/);const limit=limitMatch?parseInt(limitMatch[1],10):0;const currentValues=Array.isArray(currentValue)?currentValue:(currentValue?String(currentValue).split(', '):[]);let html=`<div class="checkbox-group" id="${safeId}" data-limit="${limit}" data-key="${answerKey}">`;(item.options||[]).forEach(opt=>{html+=`<label><input type="checkbox" name="${safeId}_option" value="${opt}" ${currentValues.includes(opt)?'checked':''} onclick="handleCheckboxClick(this)"><span class="tag-label">${opt}</span></label>`});html+=`</div>`;return html}
-        function buildSelectHtml(item,currentValue,answerKey,safeId){let currentText='בחר...';if(currentValue)currentText=currentValue.startsWith('אחר: ')?'אחר':currentValue;let html=`<div class="custom-select" data-answer-key="${answerKey}" data-safe-id="${safeId}" id="select_${safeId}"><div class="custom-select-trigger" tabindex="0">${currentText}</div><div class="custom-options">`;(item.options||[]).forEach(opt=>{html+=`<div class="custom-option" data-value="${opt}">${opt}</div>`});html+=`   </div></div>`;if((item.options||[]).includes('אחר')){const otherText=(currentValue&&currentValue.startsWith('אחר: '))?currentValue.replace('אחר: ',''):'';const displayStyle=(currentText==='אחר')?'display:block;':'';html+=`<input type="text" id="other_${safeId}" class="hidden-other-input" style="${displayStyle}" placeholder="אנא פרט..." value="${otherText}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`}
-        return html}
-        function buildFileUploadHtml(item,answerKey,safeId){const currentValue=answers[answerKey];const fileName=(currentValue&&currentValue.filename)?currentValue.filename:'';const requiredMark=item.required?`<span class="required-mark">*</span>`:'';const safeAnswerKeyForAttr=JSON.stringify(answerKey);return`<div class="file-upload-block" data-required="${item.required||false}" data-key="${answerKey}"><div class="file-upload-title">${item.question}${requiredMark}</div><label class="file-drop-area" id="drop-area-${safeId}"><input type="file" onchange='handleFileSelect(this, ${safeAnswerKeyForAttr}, "${safeId}")'><div class="file-drop-icon">📎</div><div class="file-drop-message">גרור קובץ לכאן או לחץ לבחירה</div><div class="file-name-display ${fileName?'success':''}" id="file-name-${safeId}">${fileName}</div></label><div class="error-message-inline"></div></div>`}
-        function buildCombinedFileUploadHtml(instructionItem,fileItem,sectionName,index){const sanitizedQuestionText=sanitizeTextForKey(fileItem.question);const answerKey=`${sectionName}: ${sanitizedQuestionText}`;const safeId=`q-${currentSection}-${index}`;const currentValue=answers[answerKey];const fileName=currentValue?currentValue.filename:'';const requiredMark=fileItem.required?`<span class="required-mark">*</span>`:'';const safeAnswerKeyForAttr=JSON.stringify(answerKey);return`<div class="question" data-required="${fileItem.required||false}" data-key="${answerKey}"><div class="file-upload-block"><div class="file-upload-title">${instructionItem.text}</div><label class="file-drop-area" id="drop-area-${safeId}"><input type="file" onchange='handleFileSelect(this, ${safeAnswerKeyForAttr}, "${safeId}")'><div class="file-drop-icon">📎</div><div class="file-drop-message">${fileItem.question}${requiredMark}</div><div class="file-name-display" id="file-name-${safeId}">${fileName}</div></label></div><div class="error-message-inline"></div></div>`}
-        function initCustomControls(){document.querySelectorAll('.custom-select').forEach(wrapper=>{const trigger=wrapper.querySelector('.custom-select-trigger');const options=wrapper.querySelectorAll('.custom-option');const safeId=wrapper.dataset.safeId;trigger.addEventListener('click',()=>wrapper.classList.toggle('open'));options.forEach(option=>{option.addEventListener('click',e=>{e.stopPropagation();trigger.textContent=option.textContent;wrapper.classList.remove('open');handleSelectChange(option,wrapper,safeId)})})});window.addEventListener('click',e=>{if(!e.target.closest('.custom-select')){document.querySelectorAll('.custom-select.open').forEach(w=>w.classList.remove('open'))}});document.querySelectorAll('.file-drop-area').forEach(area=>{['dragenter','dragover','dragleave','drop'].forEach(eventName=>area.addEventListener(eventName,e=>{e.preventDefault();e.stopPropagation()}));['dragenter','dragover'].forEach(eventName=>area.addEventListener(eventName,()=>area.classList.add('dragover')));['dragleave','drop'].forEach(eventName=>area.addEventListener(eventName,()=>area.classList.remove('dragover')));area.addEventListener('drop',e=>{const fileInput=area.querySelector('input[type="file"]');fileInput.files=e.dataTransfer.files;fileInput.dispatchEvent(new Event('change',{bubbles:true}))})});document.querySelectorAll('.checkbox-group').forEach(group=>{let maxWidth=0;const labels=group.querySelectorAll('.tag-label');if(labels.length===0)return;labels.forEach(label=>{if(label.offsetWidth>maxWidth)maxWidth=label.offsetWidth});labels.forEach(label=>{label.style.width=`${maxWidth}px`})})}
-        function handleRatingClick(element){const answerKey=element.closest('.rating-boxes').dataset.key;const value=element.dataset.value;element.parentElement.querySelectorAll('.rating-box').forEach(el=>el.classList.remove('selected'));element.classList.add('selected');saveAnswer(answerKey,value);scrollToNext(element.closest('.question'))}
-        function handleCheckboxClick(checkbox){const group=checkbox.closest('.checkbox-group');const answerKey=group.dataset.key;const limit=parseInt(group.dataset.limit,10);if(limit===1){if(checkbox.checked){group.querySelectorAll('input[type="checkbox"]').forEach(cb=>{if(cb!==checkbox){cb.checked=false}})}}else if(limit>1){const checkedInputs=group.querySelectorAll('input[type="checkbox"]:checked');if(checkedInputs.length>limit){checkbox.checked=false;const questionDiv=checkbox.closest('.question');questionDiv.style.backgroundColor='#fff0f0';setTimeout(()=>{questionDiv.style.backgroundColor=''},1000);const errorEl=questionDiv.querySelector('.error-message-inline');if(errorEl){errorEl.textContent=`ניתן לבחור עד ${limit} אפשרויות בלבד.`;setTimeout(()=>{if(errorEl.textContent.includes('אפשרויות בלבד'))errorEl.textContent=''},3000)}
-        return}}
-        const finalValues=Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb=>cb.value);saveAnswer(answerKey,finalValues);scrollToNext(checkbox.closest('.question'))}
-        function handleSelectChange(optionElement,selectWrapper,safeId){const value=optionElement.dataset.value;const otherInput=document.getElementById(`other_${safeId}`);const answerKey=selectWrapper.dataset.answerKey;if(otherInput){otherInput.style.display=(value==='אחר')?'block':'none';if(value!=='אחר')otherInput.value=''}
-        const finalValue=(value==='אחר'&&otherInput)?`אחר: ${otherInput.value}`:value;saveAnswer(answerKey,finalValue);if(value!=='אחר'){scrollToNext(selectWrapper.closest('.question'))}}
-        function handleTyping(inputElement){const key=inputElement.closest('.question')?.dataset.key;if(key){answers[key]=inputElement.value}}
-        function handleTextBlur(inputElement){const parentQuestion=inputElement.closest('.question');if(!parentQuestion)return;const key=parentQuestion.dataset.key;saveAnswer(key,inputElement.value);scrollToNext(parentQuestion)}
-        function handleFileSelect(fileInput,answerKey,safeId){const file=fileInput.files[0];const fileNameEl=document.getElementById(`file-name-${safeId}`);if(!file)return;if(!answerKey){fileNameEl.textContent="שגיאה: לא זוהתה שאלה.";fileNameEl.classList.add('error');console.error("File upload failed: answerKey parameter was not received.");return}
-        fileNameEl.textContent='';fileNameEl.className='file-name-display';const loadingSpan=document.createElement('span');loadingSpan.textContent='מעלה ומאמת קובץ...';const spinner=document.createElement('div');spinner.className='spinner-inline';loadingSpan.appendChild(spinner);fileNameEl.appendChild(loadingSpan);const reader=new FileReader();reader.onload=e=>{const fileObject={filename:file.name,mimeType:file.type,base64:e.target.result.split(',')[1]};const requestBody={action:'uploadFile',payload:fileObject};fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(requestBody),headers:{'Content-Type':'text/plain;charset=utf-8'}}).then(response=>response.json()).then(data=>onFileUploadComplete(data,answerKey,safeId)).catch(err=>onFileUploadComplete({success:false,error:err.message},answerKey,safeId))};reader.readAsDataURL(file)}
-        function onFileUploadComplete(response,answerKey,safeId){const fileNameEl=document.getElementById(`file-name-${safeId}`);fileNameEl.innerHTML='';if(response.success){fileNameEl.textContent=response.filename;fileNameEl.classList.add('success');saveAnswer(answerKey,{url:response.url,filename:response.filename});scrollToNext(fileNameEl.closest('.file-upload-block, .question'))}else{fileNameEl.textContent=`שגיאה: ${response.error}`;fileNameEl.classList.add('error');saveAnswer(answerKey,null)}}
-        function saveAnswer(key,value){if(key===undefined||key===null){console.error("saveAnswer was called with an undefined/null key. Aborting save.",value);return}
-        answers[key]=Array.isArray(value)?value.join(', '):value;const escapedKey=key.replace(/'/g,"\\'").replace(/"/g,'\\"');const element=document.querySelector(`[data-required="true"][data-key="${escapedKey}"]`);if(element){const answer=answers[key];const isEmpty=!answer||(typeof answer==='object'&&!answer.url)||(Array.isArray(answer)&&answer.length===0)||(typeof answer==='string'&&String(answer).trim()===''||answer===false);element.classList.toggle('invalid',isEmpty);const errorEl=element.querySelector('.error-message-inline');if(errorEl){errorEl.textContent=isEmpty?'זוהי שאלת חובה.':''}
-        if(!isEmpty){element.classList.remove('invalid');const errorEl=element.querySelector('.error-message-inline');if(errorEl)errorEl.textContent=''}}}
-        function validateRequiredQuestions(){let allValid=true;let firstInvalidElement=null;document.querySelectorAll('[data-required="true"]').forEach(element=>{const key=element.dataset.key;if(!key)return;const answer=answers[key];const isEmpty=!answer||(typeof answer==='object'&&!answer.url)||(Array.isArray(answer)&&answer.length===0)||(typeof answer==='string'&&String(answer).trim()===''||answer===false);element.classList.toggle('invalid',isEmpty);const errorEl=element.querySelector('.error-message-inline');if(errorEl){errorEl.textContent=isEmpty?'זוהי שאלת חובה.':''}
-        if(isEmpty&&!firstInvalidElement){allValid=false;firstInvalidElement=element}});if(!allValid){firstInvalidElement.scrollIntoView({behavior:'smooth',block:'center'});ui.error.textContent='יש להשלים את כל שאלות החובה (מסומנות באדום).';ui.error.style.display='block';setTimeout(()=>{ui.error.style.display='none'},5000)}
-        return allValid}
-        function handleScroll(){if(stickyHeaderPoint&&window.scrollY>stickyHeaderPoint){ui.progressHeader.classList.add('progress-header-sticky')}else{ui.progressHeader.classList.remove('progress-header-sticky')}}
-        function nextSection(){if(!validateRequiredQuestions())return;sectionHistory.push(currentSection);setNextJumpFromCurrentAnswers();let targetSection;if(nextSectionJump!==null){targetSection=nextSectionJump}else if(currentSection<sections.length-1){targetSection=currentSection+1}else{return}
-        nextSectionJump=null;transitionToSection(targetSection)}
-        function previousSection(){nextSectionJump=null;if(sectionHistory.length>0){const targetSection=sectionHistory.pop();transitionToSection(targetSection)}}
-        function transitionToSection(targetIndex){const questionsEl=ui.questionsContainer;questionsEl.classList.add('fade-out');setTimeout(()=>{currentSection=targetIndex;displayCurrentSection();ui.container.scrollIntoView({behavior:'auto'});questionsEl.classList.remove('fade-out');questionsEl.classList.add('fade-in');setTimeout(()=>questionsEl.classList.remove('fade-in'),300)},250)}
-        function setNextJumpFromCurrentAnswers(){const sectionName=sections[currentSection];const items=questionnaireData[sectionName].items||[];nextSectionJump=null;for(const item of items){if(item.type.toLowerCase().startsWith('בחירה מתוך רשימה')&&item.section_jumps){const answerKey=`${sectionName}: ${sanitizeTextForKey(item.question)}`;const answer=answers[answerKey];const selectedValue=(answer||'').startsWith('אחר: ')?'אחר':answer;if(selectedValue){const jump=item.section_jumps.find(j=>j.value===selectedValue);if(jump&&jump.target_section){const targetIndex=sections.indexOf(jump.target_section);if(targetIndex>-1){nextSectionJump=targetIndex;return}}}}}}
-        function updateProgressBars(){const sectionsProgress=sections.length>0?((sectionHistory.length+1)/sections.length)*100:0;ui.progressBar.style.width=`${sectionsProgress}%`;ui.sectionInfo.textContent=`מקטע ${currentSection+1} מתוך ${sections.length}`;const sectionName=sections[currentSection];const questionItems=(questionnaireData[sectionName]?.items||[]).filter(item=>item.type.toLowerCase()!=='הוראות');if(questionItems.length===0){ui.sectionProgressWrapper.innerHTML='';return}
-        let answeredCount=0;questionItems.forEach(item=>{const answerKey=`${sectionName}: ${sanitizeTextForKey(item.question)}`;const answer=answers[answerKey];if(answer!==undefined&&answer!==null&&String(answer).trim()!==""&&(typeof answer!=='object'||answer.url)){answeredCount++}});const sectionProgress=questionItems.length>0?(answeredCount/questionItems.length)*100:0;ui.sectionProgressWrapper.innerHTML=`<div class="section-progress-container"><div class="section-progress-bar" style="width: ${sectionProgress}%;"></div></div><div class="section-progress-info">שאלות שנענו: ${answeredCount} מתוך ${questionItems.length}</div>`}
-        function checkForDraft(){const draftData=loadLocalDraft();if(draftData&&Object.keys(draftData.answers).length>0){const savedDate=new Date(draftData.timestamp);const dialog=document.createElement('div');dialog.className='draft-dialog';dialog.innerHTML=`<div class="draft-dialog-content"><h3>נמצאה טיוטה שמורה</h3><p>נמצאה התקדמות מה- ${savedDate.toLocaleDateString('he-IL')} בשעה ${savedDate.toLocaleTimeString('he-IL')}.</p><p style="margin-top: 10px;">האם ברצונך להמשיך מהמקום בו הפסקת?</p><div class="draft-dialog-buttons"><button id="load-draft-btn" class="btn">כן, טען טיוטה</button><button id="discard-draft-btn" class="btn" style="background: #ccc; color: #333;">לא, התחל מחדש</button></div></div>`;document.body.appendChild(dialog);document.getElementById('load-draft-btn').addEventListener('click',()=>{answers=draftData.answers;sectionHistory=draftData.sectionHistory||[];dialog.remove();transitionToSection(draftData.currentSection);startAutosave()});document.getElementById('discard-draft-btn').addEventListener('click',()=>{localStorage.removeItem('questionnaireAutoSave_'+sessionToken);dialog.remove();displayCurrentSection();startAutosave()});return true}
-        return false}
-        function startAutosave(){if(autosaveInterval)clearInterval(autosaveInterval);saveLocalDraft();autosaveInterval=setInterval(saveLocalDraft,30000)}
-        function onSubmitError(error){showView(ui.questionnaire);ui.error.style.display='block';ui.error.textContent=`שגיאה בשליחת התשובות: ${error.toString()}`;ui.submitBtn.disabled=false}
-        function updateNavigation(){ui.prevBtn.style.visibility=(sectionHistory.length===0)?'hidden':'visible';const isLastSection=currentSection>=sections.length-1&&nextSectionJump===null;ui.nextBtn.style.display=isLastSection?'none':'inline-block';ui.submitBtn.style.display=isLastSection?'inline-block':'none'}
-        function showView(view){[ui.intro,ui.loading,ui.questionnaire,ui.success,ui.error].forEach(v=>v.style.display='none');view.style.display='block'}
-        function onLoadError(error){showView(ui.error);ui.error.textContent=`שגיאה בטעינת השאלון: ${error.message}. ודא שקוד הגישה (טוקן) תקין ולא נוצל בעבר.`;ui.headerTitle.textContent='שגיאת גישה'}
-        function shuffleArray(array){for(let i=array.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[array[i],array[j]]=[array[j],array[i]]}return array}
+        function buildRatingHtml(item, currentValue, answerKey) {
+            const min = item.ratingConfig?.min || 1;
+            const max = item.ratingConfig?.max || 5;
+            let html = `<div class="rating-group"><span class="rating-label-text">כלל לא</span><div class="rating-boxes" data-key="${answerKey}">`;
+            for(let j = min; j <= max; j++) {
+                html += `<div class="rating-box ${currentValue == j ? 'selected' : ''}" onclick="handleRatingClick(this)" data-value="${j}">${j}</div>`;
+            }
+            return html + `</div><span class="rating-label-text">מאוד</span></div>`;
+        }
 
-        ui.startBtn.addEventListener('click',startQuestionnaire);
-        ui.nextBtn.addEventListener('click',nextSection);
-        ui.prevBtn.addEventListener('click',previousSection);
-        ui.submitBtn.addEventListener('click',submitQuestionnaire);
-        window.addEventListener('scroll',handleScroll);
+        function buildCheckboxHtml(item, currentValue, answerKey, safeId) {
+            const limitMatch = item.type.match(/הגבלה:\s*(\d+)/);
+            const limit = limitMatch ? parseInt(limitMatch[1], 10) : 0;
+            const currentValues = Array.isArray(currentValue) ? currentValue : (currentValue ? String(currentValue).split(', ') : []);
+            let html = `<div class="checkbox-group" id="${safeId}" data-limit="${limit}" data-key="${answerKey}">`;
+            (item.options || []).forEach(opt => {
+                html += `<label><input type="checkbox" name="${safeId}_option" value="${opt}" ${currentValues.includes(opt) ? 'checked' : ''} onclick="handleCheckboxClick(this)"><span class="tag-label">${opt}</span></label>`;
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        function buildSelectHtml(item, currentValue, answerKey, safeId) {
+            let currentText = 'בחר...';
+            if(currentValue) currentText = currentValue.startsWith('אחר: ') ? 'אחר' : currentValue;
+            let html = `<div class="custom-select" data-answer-key="${answerKey}" data-safe-id="${safeId}" id="select_${safeId}"><div class="custom-select-trigger" tabindex="0">${currentText}</div><div class="custom-options">`;
+            (item.options || []).forEach(opt => {
+                html += `<div class="custom-option" data-value="${opt}">${opt}</div>`;
+            });
+            html += `</div></div>`;
+            if((item.options || []).includes('אחר')) {
+                const otherText = (currentValue && currentValue.startsWith('אחר: ')) ? currentValue.replace('אחר: ', '') : '';
+                const displayStyle = (currentText === 'אחר') ? 'display:block;' : '';
+                html += `<input type="text" id="other_${safeId}" class="hidden-other-input" style="${displayStyle}" placeholder="אנא פרט..." value="${otherText}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`;
+            }
+            return html;
+        }
+
+        function buildFileUploadHtml(item, answerKey, safeId) {
+            const currentValue = answers[answerKey];
+            const fileName = (currentValue && currentValue.filename) ? currentValue.filename : '';
+            const requiredMark = item.required ? `<span class="required-mark">*</span>` : '';
+            const safeAnswerKeyForAttr = JSON.stringify(answerKey);
+            return `<div class="file-upload-block" data-required="${item.required || false}" data-key="${answerKey}">
+                        <div class="file-upload-title">${item.question}${requiredMark}</div>
+                        <label class="file-drop-area" id="drop-area-${safeId}">
+                            <input type="file" onchange='handleFileSelect(this, ${safeAnswerKeyForAttr}, "${safeId}")'>
+                            <div class="file-drop-icon">📎</div>
+                            <div class="file-drop-message">גרור קובץ לכאן או לחץ לבחירה</div>
+                            <div class="file-name-display ${fileName ? 'success' : ''}" id="file-name-${safeId}">${fileName}</div>
+                        </label>
+                        <div class="error-message-inline"></div>
+                    </div>`;
+        }
+
+        function buildCombinedFileUploadHtml(instructionItem, fileItem, sectionName, index) {
+            const sanitizedQuestionText = sanitizeTextForKey(fileItem.question);
+            const answerKey = `${sectionName}: ${sanitizedQuestionText}`;
+            const safeId = `q-${currentSection}-${index}`;
+            const currentValue = answers[answerKey];
+            const fileName = currentValue ? currentValue.filename : '';
+            const requiredMark = fileItem.required ? `<span class="required-mark">*</span>` : '';
+            const safeAnswerKeyForAttr = JSON.stringify(answerKey);
+            return `<div class="question" data-required="${fileItem.required || false}" data-key="${answerKey}">
+                        <div class="file-upload-block">
+                            <div class="file-upload-title">${instructionItem.text}</div>
+                            <label class="file-drop-area" id="drop-area-${safeId}">
+                                <input type="file" onchange='handleFileSelect(this, ${safeAnswerKeyForAttr}, "${safeId}")'>
+                                <div class="file-drop-icon">📎</div>
+                                <div class="file-drop-message">${fileItem.question}${requiredMark}</div>
+                                <div class="file-name-display" id="file-name-${safeId}">${fileName}</div>
+                            </label>
+                        </div>
+                        <div class="error-message-inline"></div>
+                    </div>`;
+        }
+
+        function initCustomControls() {
+            document.querySelectorAll('.custom-select').forEach(wrapper => {
+                const trigger = wrapper.querySelector('.custom-select-trigger');
+                const options = wrapper.querySelectorAll('.custom-option');
+                const safeId = wrapper.dataset.safeId;
+                trigger.addEventListener('click', () => wrapper.classList.toggle('open'));
+                options.forEach(option => {
+                    option.addEventListener('click', e => {
+                        e.stopPropagation();
+                        trigger.textContent = option.textContent;
+                        wrapper.classList.remove('open');
+                        handleSelectChange(option, wrapper, safeId);
+                    });
+                });
+            });
+
+            window.addEventListener('click', e => {
+                if(!e.target.closest('.custom-select')) {
+                    document.querySelectorAll('.custom-select.open').forEach(w => w.classList.remove('open'));
+                }
+            });
+
+            document.querySelectorAll('.file-drop-area').forEach(area => {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => 
+                    area.addEventListener(eventName, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    })
+                );
+                ['dragenter', 'dragover'].forEach(eventName => 
+                    area.addEventListener(eventName, () => area.classList.add('dragover'))
+                );
+                ['dragleave', 'drop'].forEach(eventName => 
+                    area.addEventListener(eventName, () => area.classList.remove('dragover'))
+                );
+                area.addEventListener('drop', e => {
+                    const fileInput = area.querySelector('input[type="file"]');
+                    fileInput.files = e.dataTransfer.files;
+                    fileInput.dispatchEvent(new Event('change', {bubbles: true}));
+                });
+            });
+
+            document.querySelectorAll('.checkbox-group').forEach(group => {
+                let maxWidth = 0;
+                const labels = group.querySelectorAll('.tag-label');
+                if(labels.length === 0) return;
+                labels.forEach(label => {
+                    if(label.offsetWidth > maxWidth) maxWidth = label.offsetWidth;
+                });
+                labels.forEach(label => {
+                    label.style.width = `${maxWidth}px`;
+                });
+            });
+        }
+
+        function handleRatingClick(element) {
+            const answerKey = element.closest('.rating-boxes').dataset.key;
+            const value = element.dataset.value;
+            element.parentElement.querySelectorAll('.rating-box').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            saveAnswer(answerKey, value);
+            scrollToNext(element.closest('.question'));
+        }
+
+        function handleCheckboxClick(checkbox) {
+            const group = checkbox.closest('.checkbox-group');
+            const answerKey = group.dataset.key;
+            const limit = parseInt(group.dataset.limit, 10);
+            
+            if(limit === 1) {
+                if(checkbox.checked) {
+                    group.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                        if(cb !== checkbox) {
+                            cb.checked = false;
+                        }
+                    });
+                }
+            } else if(limit > 1) {
+                const checkedInputs = group.querySelectorAll('input[type="checkbox"]:checked');
+                if(checkedInputs.length > limit) {
+                    checkbox.checked = false;
+                    const questionDiv = checkbox.closest('.question');
+                    questionDiv.style.backgroundColor = '#fff0f0';
+                    setTimeout(() => {
+                        questionDiv.style.backgroundColor = '';
+                    }, 1000);
+                    const errorEl = questionDiv.querySelector('.error-message-inline');
+                    if(errorEl) {
+                        errorEl.textContent = `ניתן לבחור עד ${limit} אפשרויות בלבד.`;
+                        setTimeout(() => {
+                            if(errorEl.textContent.includes('אפשרויות בלבד')) errorEl.textContent = '';
+                        }, 3000);
+                    }
+                    return;
+                }
+            }
+            
+            const finalValues = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+            saveAnswer(answerKey, finalValues);
+            scrollToNext(checkbox.closest('.question'));
+        }
+
+        function handleSelectChange(optionElement, selectWrapper, safeId) {
+            const value = optionElement.dataset.value;
+            const otherInput = document.getElementById(`other_${safeId}`);
+            const answerKey = selectWrapper.dataset.answerKey;
+            
+            if(otherInput) {
+                otherInput.style.display = (value === 'אחר') ? 'block' : 'none';
+                if(value !== 'אחר') otherInput.value = '';
+            }
+            
+            const finalValue = (value === 'אחר' && otherInput) ? `אחר: ${otherInput.value}` : value;
+            saveAnswer(answerKey, finalValue);
+            
+            if(value !== 'אחר') {
+                scrollToNext(selectWrapper.closest('.question'));
+            }
+        }
+
+        function handleTyping(inputElement) {
+            const key = inputElement.closest('.question')?.dataset.key;
+            if(key) {
+                answers[key] = inputElement.value;
+            }
+        }
+
+        function handleTextBlur(inputElement) {
+            const parentQuestion = inputElement.closest('.question');
+            if(!parentQuestion) return;
+            const key = parentQuestion.dataset.key;
+            saveAnswer(key, inputElement.value);
+            scrollToNext(parentQuestion);
+        }
+
+        function handleFileSelect(fileInput, answerKey, safeId) {
+            const file = fileInput.files[0];
+            const fileNameEl = document.getElementById(`file-name-${safeId}`);
+            if(!file) return;
+            
+            if(!answerKey) {
+                fileNameEl.textContent = "שגיאה: לא זוהתה שאלה.";
+                fileNameEl.classList.add('error');
+                console.error("File upload failed: answerKey parameter was not received.");
+                return;
+            }
+            
+            fileNameEl.textContent = '';
+            fileNameEl.className = 'file-name-display';
+            const loadingSpan = document.createElement('span');
+            loadingSpan.textContent = 'מעלה ומאמת קובץ...';
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner-inline';
+            loadingSpan.appendChild(spinner);
+            fileNameEl.appendChild(loadingSpan);
+            
+            const reader = new FileReader();
+            reader.onload = e => {
+                const fileObject = {
+                    filename: file.name,
+                    mimeType: file.type,
+                    base64: e.target.result.split(',')[1]
+                };
+                const requestBody = {
+                    action: 'uploadFile',
+                    payload: fileObject
+                };
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(requestBody),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                })
+                .then(response => response.json())
+                .then(data => onFileUploadComplete(data, answerKey, safeId))
+                .catch(err => onFileUploadComplete({success: false, error: err.message}, answerKey, safeId));
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function onFileUploadComplete(response, answerKey, safeId) {
+            const fileNameEl = document.getElementById(`file-name-${safeId}`);
+            fileNameEl.innerHTML = '';
+            
+            if(response.success) {
+                fileNameEl.textContent = response.filename;
+                fileNameEl.classList.add('success');
+                saveAnswer(answerKey, {url: response.url, filename: response.filename});
+                scrollToNext(fileNameEl.closest('.file-upload-block, .question'));
+            } else {
+                fileNameEl.textContent = `שגיאה: ${response.error}`;
+                fileNameEl.classList.add('error');
+                saveAnswer(answerKey, null);
+            }
+        }
+
+        function saveAnswer(key, value) {
+            if(key === undefined || key === null) {
+                console.error("saveAnswer was called with an undefined/null key. Aborting save.", value);
+                return;
+            }
+            
+            answers[key] = Array.isArray(value) ? value.join(', ') : value;
+            const escapedKey = key.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const element = document.querySelector(`[data-required="true"][data-key="${escapedKey}"]`);
+            
+            if(element) {
+                const answer = answers[key];
+                const isEmpty = !answer || (typeof answer === 'object' && !answer.url) || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && String(answer).trim() === '' || answer === false);
+                element.classList.toggle('invalid', isEmpty);
+                const errorEl = element.querySelector('.error-message-inline');
+                if(errorEl) {
+                    errorEl.textContent = isEmpty ? 'זוהי שאלת חובה.' : '';
+                }
+                
+                if(!isEmpty) {
+                    element.classList.remove('invalid');
+                    const errorEl = element.querySelector('.error-message-inline');
+                    if(errorEl) errorEl.textContent = '';
+                }
+            }
+        }
+
+        function validateRequiredQuestions() {
+            let allValid = true;
+            let firstInvalidElement = null;
+            
+            document.querySelectorAll('[data-required="true"]').forEach(element => {
+                const key = element.dataset.key;
+                if(!key) return;
+                
+                const answer = answers[key];
+                const isEmpty = !answer || (typeof answer === 'object' && !answer.url) || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && String(answer).trim() === '' || answer === false);
+                element.classList.toggle('invalid', isEmpty);
+                const errorEl = element.querySelector('.error-message-inline');
+                if(errorEl) {
+                    errorEl.textContent = isEmpty ? 'זוהי שאלת חובה.' : '';
+                }
+                
+                if(isEmpty && !firstInvalidElement) {
+                    allValid = false;
+                    firstInvalidElement = element;
+                }
+            });
+            
+            if(!allValid) {
+                firstInvalidElement.scrollIntoView({behavior: 'smooth', block: 'center'});
+                ui.error.textContent = 'יש להשלים את כל שאלות החובה (מסומנות באדום).';
+                ui.error.style.display = 'block';
+                setTimeout(() => {
+                    ui.error.style.display = 'none';
+                }, 5000);
+            }
+            
+            return allValid;
+        }
+
+        async function submitQuestionnaire() {
+            if(!validateRequiredQuestions()) return;
+            showView(ui.loading);
+            ui.loadingText.textContent = 'שולח תשובות...';
+            ui.submitBtn.disabled = true;
+            if(autosaveInterval) clearInterval(autosaveInterval);
+            
+            const submissionData = {
+                action: 'saveAnswers',
+                payload: {
+                    answers: answers,
+                    timestamp: new Date().toISOString(),
+                    token: sessionToken
+                }
+            };
+            
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(submissionData),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                const result = await response.json();
+                
+                if(result.success) {
+                    localStorage.removeItem('questionnaireAutoSave_' + sessionToken);
+                    showView(ui.success);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch(error) {
+                onSubmitError(error);
+            }
+        }
+
+        function saveLocalDraft() {
+            if(!sessionToken) return;
+            try {
+                const draftData = {
+                    answers: answers,
+                    currentSection: currentSection,
+                    sectionHistory: sectionHistory,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('questionnaireAutoSave_' + sessionToken, JSON.stringify(draftData));
+                ui.saveIndicator.textContent = `נשמר: ${new Date().toLocaleTimeString()}`;
+                ui.saveIndicator.style.opacity = '1';
+                setTimeout(() => {
+                    ui.saveIndicator.style.opacity = '0.5';
+                }, 3000);
+            } catch(e) {
+                console.error('Error saving draft:', e);
+            }
+        }
+
+        function loadLocalDraft() {
+            if(!sessionToken) return null;
+            try {
+                const savedData = localStorage.getItem('questionnaireAutoSave_' + sessionToken);
+                if(!savedData) return null;
+                const draftData = JSON.parse(savedData);
+                if((new Date - new Date(draftData.timestamp)) / (1000 * 3600 * 24) > 7) {
+                    localStorage.removeItem('questionnaireAutoSave_' + sessionToken);
+                    return null;
+                }
+                return draftData;
+            } catch(e) {
+                console.error('Error loading draft:', e);
+                return null;
+            }
+        }
+
+        function sanitizeTextForKey(text) {
+            if(typeof text !== 'string') return '';
+            return text.replace(/[\r\n\t]/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+        }
+
+        function scrollToNext(currentElement) {
+            const allQuestions = Array.from(ui.questionsContainer.querySelectorAll('.question, .file-upload-block, .confirmation-block'));
+            const currentIndex = allQuestions.findIndex(el => el === currentElement);
+            if(currentIndex > -1 && currentIndex < allQuestions.length - 1) {
+                const nextQuestionEl = allQuestions[currentIndex + 1];
+                setTimeout(() => {
+                    nextQuestionEl.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }, 200);
+            }
+        }
+
+        function startQuestionnaire() {
+            if(!checkForDraft()) {
+                currentSection = 0;
+                displayCurrentSection();
+                startAutosave();
+            }
+        }
+
+        function handleScroll() {
+            if(stickyHeaderPoint && window.scrollY > stickyHeaderPoint) {
+                ui.progressHeader.classList.add('progress-header-sticky');
+            } else {
+                ui.progressHeader.classList.remove('progress-header-sticky');
+            }
+        }
+
+        function nextSection() {
+            if(!validateRequiredQuestions()) return;
+            sectionHistory.push(currentSection);
+            setNextJumpFromCurrentAnswers();
+            let targetSection;
+            if(nextSectionJump !== null) {
+                targetSection = nextSectionJump;
+            } else if(currentSection < sections.length - 1) {
+                targetSection = currentSection + 1;
+            } else {
+                return;
+            }
+            nextSectionJump = null;
+            transitionToSection(targetSection);
+        }
+
+        function previousSection() {
+            nextSectionJump = null;
+            if(sectionHistory.length > 0) {
+                const targetSection = sectionHistory.pop();
+                transitionToSection(targetSection);
+            }
+        }
+
+        function transitionToSection(targetIndex) {
+            const questionsEl = ui.questionsContainer;
+            questionsEl.classList.add('fade-out');
+            setTimeout(() => {
+                currentSection = targetIndex;
+                displayCurrentSection();
+                ui.container.scrollIntoView({behavior: 'auto'});
+                questionsEl.classList.remove('fade-out');
+                questionsEl.classList.add('fade-in');
+                setTimeout(() => questionsEl.classList.remove('fade-in'), 300);
+            }, 250);
+        }
+
+        function setNextJumpFromCurrentAnswers() {
+            const sectionName = sections[currentSection];
+            const items = questionnaireData[sectionName].items || [];
+            nextSectionJump = null;
+            
+            for(const item of items) {
+                if(item.type.toLowerCase().startsWith('בחירה מתוך רשימה') && item.section_jumps) {
+                    const answerKey = `${sectionName}: ${sanitizeTextForKey(item.question)}`;
+                    const answer = answers[answerKey];
+                    const selectedValue = (answer || '').startsWith('אחר: ') ? 'אחר' : answer;
+                    
+                    if(selectedValue) {
+                        const jump = item.section_jumps.find(j => j.value === selectedValue);
+                        if(jump && jump.target_section) {
+                            const targetIndex = sections.indexOf(jump.target_section);
+                            if(targetIndex > -1) {
+                                nextSectionJump = targetIndex;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateProgressBars() {
+            const sectionsProgress = sections.length > 0 ? ((sectionHistory.length + 1) / sections.length) * 100 : 0;
+            ui.progressBar.style.width = `${sectionsProgress}%`;
+            ui.sectionInfo.textContent = `מקטע ${currentSection + 1} מתוך ${sections.length}`;
+            
+            const sectionName = sections[currentSection];
+            const questionItems = (questionnaireData[sectionName]?.items || []).filter(item => item.type.toLowerCase() !== 'הוראות');
+            
+            if(questionItems.length === 0) {
+                ui.sectionProgressWrapper.innerHTML = '';
+                return;
+            }
+            
+            let answeredCount = 0;
+            questionItems.forEach(item => {
+                const answerKey = `${sectionName}: ${sanitizeTextForKey(item.question)}`;
+                const answer = answers[answerKey];
+                if(answer !== undefined && answer !== null && String(answer).trim() !== "" && (typeof answer !== 'object' || answer.url)) {
+                    answeredCount++;
+                }
+            });
+            
+            const sectionProgress = questionItems.length > 0 ? (answeredCount / questionItems.length) * 100 : 0;
+            ui.sectionProgressWrapper.innerHTML = `<div class="section-progress-container"><div class="section-progress-bar" style="width: ${sectionProgress}%;"></div></div><div class="section-progress-info">שאלות שנענו: ${answeredCount} מתוך ${questionItems.length}</div>`;
+        }
+
+        function checkForDraft() {
+            const draftData = loadLocalDraft();
+            if(draftData && Object.keys(draftData.answers).length > 0) {
+                const savedDate = new Date(draftData.timestamp);
+                const dialog = document.createElement('div');
+                dialog.className = 'draft-dialog';
+                dialog.innerHTML = `<div class="draft-dialog-content">
+                    <h3>נמצאה טיוטה שמורה</h3>
+                    <p>נמצאה התקדמות מה- ${savedDate.toLocaleDateString('he-IL')} בשעה ${savedDate.toLocaleTimeString('he-IL')}.</p>
+                    <p style="margin-top: 10px;">האם ברצונך להמשיך מהמקום בו הפסקת?</p>
+                    <div class="draft-dialog-buttons">
+                        <button id="load-draft-btn" class="btn">כן, טען טיוטה</button>
+                        <button id="discard-draft-btn" class="btn" style="background: #ccc; color: #333;">לא, התחל מחדש</button>
+                    </div>
+                </div>`;
+                document.body.appendChild(dialog);
+                
+                document.getElementById('load-draft-btn').addEventListener('click', () => {
+                    answers = draftData.answers;
+                    sectionHistory = draftData.sectionHistory || [];
+                    dialog.remove();
+                    transitionToSection(draftData.currentSection);
+                    startAutosave();
+                });
+                
+                document.getElementById('discard-draft-btn').addEventListener('click', () => {
+                    localStorage.removeItem('questionnaireAutoSave_' + sessionToken);
+                    dialog.remove();
+                    displayCurrentSection();
+                    startAutosave();
+                });
+                
+                return true;
+            }
+            return false;
+        }
+
+        function startAutosave() {
+            if(autosaveInterval) clearInterval(autosaveInterval);
+            saveLocalDraft();
+            autosaveInterval = setInterval(saveLocalDraft, 30000);
+        }
+
+        function onSubmitError(error) {
+            showView(ui.questionnaire);
+            ui.error.style.display = 'block';
+            ui.error.textContent = `שגיאה בשליחת התשובות: ${error.toString()}`;
+            ui.submitBtn.disabled = false;
+        }
+
+        function updateNavigation() {
+            ui.prevBtn.style.visibility = (sectionHistory.length === 0) ? 'hidden' : 'visible';
+            const isLastSection = currentSection >= sections.length - 1 && nextSectionJump === null;
+            ui.nextBtn.style.display = isLastSection ? 'none' : 'inline-block';
+            ui.submitBtn.style.display = isLastSection ? 'inline-block' : 'none';
+        }
+
+        function showView(view) {
+            [ui.intro, ui.loading, ui.questionnaire, ui.success, ui.error].forEach(v => v.style.display = 'none');
+            view.style.display = 'block';
+        }
+
+        function onLoadError(error) {
+            showView(ui.error);
+            ui.error.textContent = `שגיאה בטעינת השאלון: ${error.message}. ודא שקוד הגישה (טוקן) תקין ולא נוצל בעבר.`;
+            ui.headerTitle.textContent = 'שגיאת גישה';
+        }
+
+        function shuffleArray(array) {
+            for(let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        ui.startBtn.addEventListener('click', startQuestionnaire);
+        ui.nextBtn.addEventListener('click', nextSection);
+        ui.prevBtn.addEventListener('click', previousSection);
+        ui.submitBtn.addEventListener('click', submitQuestionnaire);
+        window.addEventListener('scroll', handleScroll);
         
         init();
     </script>
