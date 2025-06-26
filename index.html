@@ -170,25 +170,77 @@
         function displayCurrentSection() {
             showView(ui.questionnaire);
             const sectionName = sections[currentSection];
+            
             const originalItems = questionnaireData[sectionName].items || [];
             let items;
+            
             if (questionnaireData[sectionName].randomize) {
-                const pinnedItems = originalItems.filter(item => item.type.toLowerCase() === 'הוראות');
-                const shuffleableItems = originalItems.filter(item => item.type.toLowerCase() !== 'הוראות');
-                const shuffledItems = shuffleArray(shuffleableItems);
-                items = [...pinnedItems, ...shuffledItems];
+                const pinnedItems = originalItems.filter(item => item.type.toLowerCase() === 'הוראות' && !isPairedWithFileInput(originalItems, originalItems.indexOf(item)));
+                
+                const shuffleableItems = originalItems.filter(item => !pinnedItems.includes(item));
+
+                const groupedShuffleable = groupItems(shuffleableItems);
+                const shuffledGroups = shuffleArray(groupedShuffleable);
+
+                items = [...pinnedItems, ...ungroupItems(shuffledGroups)];
             } else {
                 items = originalItems;
             }
+
             let html = `<div class="category-section"><h3 class="category-title">${sectionName}</h3>`;
-            items.forEach((item, i) => {
-                 html += buildItemHtml(item, sectionName, i);
-            });
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const nextItem = (i + 1 < items.length) ? items[i + 1] : null;
+
+                if (item.type.toLowerCase() === 'הוראות' && nextItem && nextItem.type.toLowerCase() === 'קובץ') {
+                    html += buildCombinedFileUploadHtml(item, nextItem, sectionName, i);
+                    i++; 
+                } else {
+                    html += buildItemHtml(item, sectionName, i);
+                }
+            }
             ui.questionsContainer.innerHTML = html;
+            
             initCustomControls();
             updateProgressBars();
             updateNavigation();
         }
+        
+        // --- Helper functions for the new shuffling logic ---
+        function isPairedWithFileInput(allItems, index) {
+            if (index + 1 < allItems.length) {
+                return allItems[index + 1].type.toLowerCase() === 'קובץ';
+            }
+            return false;
+        }
+
+        function groupItems(items) {
+            const grouped = [];
+            for (let i = 0; i < items.length; i++) {
+                const current = items[i];
+                const next = (i + 1 < items.length) ? items[i + 1] : null;
+                if (current.type.toLowerCase() === 'הוראות' && next && next.type.toLowerCase() === 'קובץ') {
+                    grouped.push({ isGroup: true, group: [current, next] });
+                    i++; // Skip next item
+                } else {
+                    grouped.push(current);
+                }
+            }
+            return grouped;
+        }
+
+        function ungroupItems(groupedItems) {
+            const ungrouped = [];
+            groupedItems.forEach(item => {
+                if (item.isGroup) {
+                    ungrouped.push(...item.group);
+                } else {
+                    ungrouped.push(item);
+                }
+            });
+            return ungrouped;
+        }
+
 
         function buildItemHtml(item, sectionName, index) {
             const sanitizedQuestionText = sanitizeTextForKey(item.question);
@@ -197,9 +249,11 @@
             const requiredMark = item.required ? `<span class="required-mark">*</span>` : '';
             const itemType = item.type.toLowerCase();
             const currentValue = answers[answerKey];
+
             if (itemType === 'הוראות') return `<div class="instruction-text">${item.text}</div>`;
             if (itemType === 'אישור') return buildConfirmationHtml(item, currentValue, answerKey, safeId);
             if (itemType === 'מייל_מזוהה') return buildPrefilledEmailHtml(item, answerKey);
+
             let html = `<div class="question" data-required="${item.required || false}" data-key="${answerKey}"><div class="question-text">${item.question}${requiredMark}</div><div class="question-input">`;
             if(itemType.startsWith('טקסט') || itemType.startsWith('מספר') || itemType.startsWith('שם')) { const inputType = itemType.startsWith('מספר') ? 'number' : 'text'; const tag = itemType.startsWith('טקסט') ? `<textarea oninput="handleTyping(this)" onblur="handleTextBlur(this)" rows="4">${currentValue || ''}</textarea>` : `<input type="${inputType}" value="${currentValue || ''}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`; html += tag; } else if(itemType.startsWith('דירוג')) { html += buildRatingHtml(item, currentValue, answerKey); } else if(itemType.startsWith('בחירה מרובה')) { html += buildCheckboxHtml(item, currentValue, answerKey, safeId); } else if(itemType.startsWith('בחירה מתוך רשימה')) { html += buildSelectHtml(item, currentValue, answerKey, safeId); } else if(itemType.startsWith('קובץ')) { html += buildFileUploadHtml({question: item.question, required: item.required}, answerKey, safeId); } else { html += `<input type="text" value="${currentValue || ''}" oninput="handleTyping(this)" onblur="handleTextBlur(this)">`; }
             return html + `</div><div class="error-message-inline"></div></div>`;
