@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>התשלום הושלם בהצלחה!</title>
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/nzinok/questionnaire-site/fe58ebe6cc328ce515da4bdece58cb1886d3c9bd/%D7%A0%D7%A7%D7%95%D7%93%D7%AA%20%D7%96%D7%99%D7%A0%D7%95%D7%A7%20%D7%A2%D7%9C%20%D7%A8%D7%A7%D7%A2%20%D7%98%D7%A8%D7%99%D7%A7%D7%95%D7%9C%D7%95%D7%A8%20(1).png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        @keyframes fadeInModal { from { opacity: 0; transform: translateY(-20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        body { font-family: 'Rubik', sans-serif; margin: 0; background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .modal-container { background-color: white; padding: 30px 40px; border-radius: 16px; box-shadow: 0 20px 60px rgba(50, 50, 93, 0.15), 0 15px 35px rgba(0, 0, 0, 0.1); text-align: center; max-width: 520px; width: 100%; border: 1px solid #e6e9ee; animation: fadeInModal 0.6s ease-out forwards; }
+        .icon-success { width: 80px; height: 80px; margin: 0 auto 20px auto; }
+        .icon-success .circle { stroke-dasharray: 264; stroke-dashoffset: 264; animation: drawCircle 0.8s ease-out forwards; }
+        .icon-success .checkmark { stroke-dasharray: 48; stroke-dashoffset: 48; animation: drawCheckmark 0.4s 0.5s ease-out forwards; }
+        @keyframes drawCircle { to { stroke-dashoffset: 0; } }
+        @keyframes drawCheckmark { to { stroke-dashoffset: 0; } }
+        h1 { font-size: 2rem; font-weight: 700; color: #334155; margin-bottom: 15px; }
+        p { font-size: 1.1rem; color: #64748b; line-height: 1.7; margin-bottom: 25px; }
+        .email-display { font-weight: bold; color: #334155; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #435ebe; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="modal-container" id="main-content">
+        <div id="loading-state">
+            <div class="loader"></div>
+            <p>מאמתים את התשלום ושולחים לך מייל...</p>
+        </div>
+        <div id="success-state" style="display:none;">
+            <svg class="icon-success" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                 <circle class="circle" cx="50" cy="50" r="42" fill="none" stroke="#27ae60" stroke-width="4"/>
+                 <path class="checkmark" fill="none" stroke="#27ae60" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M34,50 l12,12 l20,-20"/>
+            </svg>
+            <h1>התשלום הושלם בהצלחה!</h1>
+            <p>שלחנו כעת קישור אישי וייחודי לכניסה לשאלון לכתובת המייל: <br><strong id="customer-email" class="email-display"></strong></p>
+            <p style="font-size: 0.9rem; color: #94a3b8;">(אם המייל לא הגיע תוך מספר דקות, אנא בדוק את תיבת הספאם או צור עמנו קשר).</p>
+        </div>
+        <div id="error-state" style="display:none;">
+            <p style="color:red;">אירעה שגיאה בתהליך. אנא צור עמנו קשר עם פרטי ההזמנה.</p>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqwdoc1DnpegDI9a6UrCarWxXZ_wh9zTH-uK4mnt83gNm8YC-NjyBkTWD-NlSAjH5g/exec";
+
+        (function() {
+            const loadingDiv = document.getElementById('loading-state');
+            const successDiv = document.getElementById('success-state');
+            const errorDiv = document.getElementById('error-state');
+            const emailSpan = document.getElementById('customer-email');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const customerEmail = urlParams.get('email');
+
+            if (customerEmail) {
+                emailSpan.textContent = customerEmail;
+                const requestBody = {
+                    action: 'processPaymentAndSendEmail',
+                    payload: { email: customerEmail }
+                };
+
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(requestBody),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingDiv.style.display = 'none';
+                    if (data.success) {
+                        successDiv.style.display = 'block';
+                    } else {
+                        errorDiv.style.display = 'block';
+                        console.error("API Error:", data.message);
+                    }
+                })
+                .catch(error => {
+                     loadingDiv.style.display = 'none';
+                     errorDiv.style.display = 'block';
+                     console.error("Fetch Error:", error);
+                });
+            } else {
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'שגיאה: לא זוהתה כתובת אימייל לצורך שליחת הקישור.';
+            }
+        })();
+    </script>
+</body>
+</html>
