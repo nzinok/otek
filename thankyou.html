@@ -55,6 +55,18 @@
 
             const urlParams = new URLSearchParams(window.location.search);
             const customerEmail = urlParams.get('email');
+            
+            // Define a unique key for the browser session based on the email
+            const sessionKey = 'requestSent_' + customerEmail;
+
+            // --- NEW LOGIC: Check if the request was already sent in this session ---
+            if (sessionStorage.getItem(sessionKey)) {
+                console.log("Request already sent in this session. Displaying success message directly.");
+                loadingDiv.style.display = 'none';
+                if(customerEmail) emailSpan.textContent = customerEmail;
+                successDiv.style.display = 'block';
+                return; // Stop further execution
+            }
 
             if (customerEmail) {
                 emailSpan.textContent = customerEmail;
@@ -72,6 +84,8 @@
                 .then(data => {
                     loadingDiv.style.display = 'none';
                     if (data.success) {
+                        // --- NEW LOGIC: Set the flag after a successful call ---
+                        sessionStorage.setItem(sessionKey, 'true');
                         successDiv.style.display = 'block';
                     } else {
                         errorDiv.style.display = 'block';
